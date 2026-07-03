@@ -9,7 +9,7 @@
  * - plugin 과는 MessageChannel 로 직결 (plugin 이 connect 핸드셰이크를 시작)
  */
 ;(() => {
-  const BRIDGE_VERSION = '0.1.0'
+  const BRIDGE_VERSION = '0.2.0'
   const PROTOCOL_V = 1
 
   // 배포 설정은 serve.mjs 가 env 로부터 생성하는 /config.js (window.EO_BRIDGE_CONFIG) 로 주입.
@@ -188,10 +188,51 @@
     }
   })
 
+  // ---------------------------------------------------- standalone 모드
+  // 임베더 없이 직접 열린 경우: 문서 서버 status 를 스스로 조회해 에디터를 띄운다.
+  // 쿼리: ?type=xlsx|docx|pptx  ?mode=edit|view  ?status=<status 엔드포인트>
+  const IS_EMBEDDED = window.parent !== window
+
+  function showNotice(msg) {
+    document.getElementById('editor-root').innerHTML =
+      `<div style="display:flex;height:100%;align-items:center;justify-content:center;` +
+      `font-family:sans-serif;color:#6b7280;font-size:14px;padding:24px;text-align:center">${msg}</div>`
+  }
+
+  async function bootStandalone() {
+    const params = new URLSearchParams(location.search)
+    const statusBase =
+      params.get('status') || CFG.standaloneStatusUrl || 'http://localhost:9020/status'
+    const type = params.get('type') || 'xlsx'
+    try {
+      const statusUrl = new URL(statusBase)
+      statusUrl.searchParams.set('type', type)
+      const s = await (await fetch(statusUrl)).json()
+      loadDocument({
+        docType: s.doc.documentType,
+        fileType: s.doc.fileType,
+        mode: params.get('mode') || 'edit',
+        key: s.key,
+        url: s.doc.url,
+        title: s.doc.title,
+        callbackUrl: s.doc.callbackUrl,
+      })
+    } catch {
+      showNotice(
+        `standalone 모드: 문서 서버(${statusBase}) 접속 실패.<br/>` +
+          `문서 서버가 떠 있어야 하며, ?status= 쿼리로 다른 엔드포인트를 지정할 수 있습니다.`,
+      )
+    }
+  }
+
   // ------------------------------------------------------------- 부팅
   const script = document.createElement('script')
   script.src = `${DS_URL}/web-apps/apps/api/documents/api.js`
   script.onload = () => {
+    if (!IS_EMBEDDED) {
+      bootStandalone()
+      return
+    }
     // 임베더가 아직 parentOrigin 을 안 줬으므로 allowlist 전체에 ready 통지
     for (const origin of ALLOWED_PARENT_ORIGINS) {
       try {
@@ -205,6 +246,10 @@
     }
   }
   script.onerror = () => {
+    if (!IS_EMBEDDED) {
+      showNotice(`DocumentServer(${DS_URL}) api.js 로드 실패 — DS 가 떠 있는지 확인하세요.`)
+      return
+    }
     for (const origin of ALLOWED_PARENT_ORIGINS) {
       try {
         window.parent.postMessage(

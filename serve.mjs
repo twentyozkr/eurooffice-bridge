@@ -20,6 +20,9 @@ if (process.env.EO_ALLOWED_PARENT_ORIGINS) {
     .filter(Boolean)
 }
 if (process.env.EO_DS_URL) runtimeConfig.dsUrl = process.env.EO_DS_URL
+if (process.env.EO_STANDALONE_STATUS_URL) {
+  runtimeConfig.standaloneStatusUrl = process.env.EO_STANDALONE_STATUS_URL
+}
 const CONFIG_JS = `window.EO_BRIDGE_CONFIG = ${JSON.stringify(runtimeConfig)}\n`
 
 const MIME = {
