@@ -9,7 +9,7 @@
  * - plugin 과는 MessageChannel 로 직결 (plugin 이 connect 핸드셰이크를 시작)
  */
 ;(() => {
-  const BRIDGE_VERSION = '0.3.0'
+  const BRIDGE_VERSION = '0.3.1'
   const PROTOCOL_V = 1
 
   // 배포 설정은 serve.mjs 가 env 로부터 생성하는 /config.js (window.EO_BRIDGE_CONFIG) 로 주입.
