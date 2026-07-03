@@ -115,7 +115,18 @@
         mode,
         lang: p.lang || 'ko-KR',
         user: { id: 'eo-bridge-user', name: p.userName || '사용자' },
-        customization: { autosave: true, forcesave: true, compactHeader: true },
+        customization: {
+          autosave: true,
+          forcesave: true,
+          compactHeader: true,
+          // 좌측 상단 로고: 임베더가 eo:load 의 logo 로 브랜딩 주입, 기본은 빈 로고(외부 링크 제거).
+          // euro-office 는 §7(b) 로고 강제 조항이 제거된 순수 AGPL 이라 교체 가능
+          logo: p.logo || {
+            image: `${location.origin}/blank-logo.png`,
+            imageDark: `${location.origin}/blank-logo.png`,
+            url: '',
+          },
+        },
       },
       events: {
         onDocumentReady: () => emit('eo:documentReady', { key: p.key }),
