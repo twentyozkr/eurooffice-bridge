@@ -13,12 +13,19 @@
 #       web-apps 정적 번들의 기본값을 빈 문자열로 패치한다.
 #     ⚠ AGPL 수정에 해당 — 이 스크립트(공개 저장소)가 수정 내용의 공개 그 자체다.
 #       About 다이얼로그의 출처 표기/링크는 건드리지 않는다.
+# 사용법: ./ds-setup.sh <컨테이너이름> [--logo-only]
+#   --logo-only: 사설 IP 허용을 건너뜀 — 문서 URL 이 공인 도메인인 "공개 배포 DS" 용.
+#                공개 DS 에 사설 IP 허용을 넣으면 내부망 SSRF 통로가 되므로 금지.
 set -euo pipefail
 
 CONTAINER="${1:-eurooffice-poc}"
+LOGO_ONLY="${2:-}"
 
-echo "[1/3] request-filtering 사설 IP 허용"
-docker exec "$CONTAINER" bash -c '
+if [ "$LOGO_ONLY" = "--logo-only" ]; then
+  echo "[1/3] request-filtering 사설 IP 허용 — 건너뜀 (--logo-only)"
+else
+  echo "[1/3] request-filtering 사설 IP 허용"
+  docker exec "$CONTAINER" bash -c '
 python3 - <<EOF
 import json
 p = "/etc/euro-office/documentserver/local.json"
@@ -27,6 +34,7 @@ svc = cfg.setdefault("services", {}).setdefault("CoAuthoring", {})
 svc["request-filtering-agent"] = {"allowPrivateIPAddress": True, "allowMetaIPAddress": True}
 with open(p, "w") as f: json.dump(cfg, f, indent=2)
 EOF'
+fi
 
 echo "[2/3] 로고 클릭 기본 링크 무효화 (web-apps 번들 패치)"
 docker exec "$CONTAINER" bash -c '
