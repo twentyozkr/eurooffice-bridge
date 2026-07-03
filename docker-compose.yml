@@ -1,0 +1,34 @@
+# eo-bridge 풀스택 — 브릿지 + DocumentServer 를 한 번에
+#
+# 로컬:   docker compose up -d --build
+#         → 브릿지 http://localhost:9030 (/excel /docs /slides), DS http://localhost:9080
+# 배포:   Dokploy Compose 서비스로 이 저장소를 지정, env 를 배포값으로 설정 후
+#         bridge(9030)·documentserver(80) 각각에 도메인 연결
+#
+# ⚠ 공개 배포 시 반드시:
+#   EO_DS_ALLOW_PRIVATE_IP=false (기본값. 로컬에서만 true — SSRF 방지)
+#   JWT_ENABLED=true + JWT_SECRET (공개 DS 남용 방지 — 임베더 문서 서버의 토큰 서명 필요)
+services:
+  bridge:
+    build: .
+    ports:
+      - '9030:9030'
+    environment:
+      # DS 주소 (브라우저 관점). 로컬 기본 localhost:9080, 배포 시 DS 도메인
+      EO_DS_URL: ${EO_DS_URL:-http://localhost:9080}
+      # 이 브릿지의 주소 (DS 관점 — 데모 문서를 가져갈 때). 배포 시 브릿지 도메인
+      EO_PUBLIC_URL: ${EO_PUBLIC_URL:-http://bridge:9030}
+      # 임베더 origin allowlist (미설정 시 localhost:9000)
+      EO_ALLOWED_PARENT_ORIGINS: ${EO_ALLOWED_PARENT_ORIGINS:-}
+    restart: unless-stopped
+
+  documentserver:
+    build: ./ds
+    ports:
+      - '9080:80'
+    environment:
+      JWT_ENABLED: ${JWT_ENABLED:-false}
+      # 로컬 compose 는 데모 문서 URL(http://bridge:9030)이 사설 주소라 허용 필요.
+      # 공개 배포(EO_PUBLIC_URL 이 공인 도메인)에서는 false 로!
+      EO_DS_ALLOW_PRIVATE_IP: ${EO_DS_ALLOW_PRIVATE_IP:-true}
+    restart: unless-stopped
