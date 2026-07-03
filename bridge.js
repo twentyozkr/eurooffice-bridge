@@ -9,7 +9,7 @@
  * - plugin 과는 MessageChannel 로 직결 (plugin 이 connect 핸드셰이크를 시작)
  */
 ;(() => {
-  const BRIDGE_VERSION = '0.4.0'
+  const BRIDGE_VERSION = '0.5.0'
   const PROTOCOL_V = 1
 
   // 배포 설정은 serve.mjs 가 env 로부터 생성하는 /config.js (window.EO_BRIDGE_CONFIG) 로 주입.
@@ -224,12 +224,17 @@
     // 기본은 같은 origin 의 내장 데모 문서 서버 — 브릿지 단독으로 완전 동작
     const statusBase =
       params.get('status') || CFG.standaloneStatusUrl || `${location.origin}/demo/status`
+    // 모드: /collabo 프리픽스 = 협업(공유 문서), 그 외 = 개인(브라우저별 문서)
+    const isCollabo = location.pathname === '/collabo' || location.pathname.startsWith('/collabo/')
+    const subPath = isCollabo ? location.pathname.replace(/^\/collabo/, '') || '/excel' : location.pathname
     // 문서 타입: ?type= 쿼리 > 경로(/docs, /slides, /excel) > xlsx
     const PATH_TYPES = { '/docs': 'docx', '/slides': 'pptx', '/excel': 'xlsx' }
-    const type = params.get('type') || PATH_TYPES[location.pathname] || 'xlsx'
+    const type = params.get('type') || PATH_TYPES[subPath] || 'xlsx'
     try {
       const statusUrl = new URL(statusBase)
       statusUrl.searchParams.set('type', type)
+      // 개인 모드: 브라우저 식별자를 세션으로 사용 → 각자 자기 문서/세션
+      if (!isCollabo) statusUrl.searchParams.set('session', localUser().id)
       const s = await (await fetch(statusUrl)).json()
       loadDocument({
         docType: s.doc.documentType,

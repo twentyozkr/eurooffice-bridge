@@ -58,8 +58,13 @@ bun serve.mjs
 
 ### standalone / 데모 문서 서버
 
-`/excel` `/docs` `/slides` 경로(또는 `host.html?type=`)로 직접 열면 내장 데모 문서
-서버(`/demo/*`)로 즉시 편집 가능하다 — 임베더 없이 브릿지+DS 만으로 완전 동작.
+임베더 없이 브릿지+DS 만으로 완전 동작한다 (내장 데모 문서 서버 `/demo/*`).
+
+| 경로 | 모드 |
+|---|---|
+| `/excel` `/docs` `/slides` | **개인** — 브라우저별 자기 문서 (세션·저장 분리) |
+| `/collabo/excel` `/collabo/docs` `/collabo/slides` | **협업** — 공유 문서 동시편집 |
+
 실제 연동에서는 임베더 측 문서 서버가 문서 서빙/저장을 맡는다 (`?status=` 로 지정 가능).
 
 헬스체크: `GET /healthz`. 로컬 개발은 env 없이 `bun serve.mjs` (localhost 기본값).

@@ -61,38 +61,51 @@ const DEMO_TYPES = {
   pptx: { ct: `${OOXML}.presentationml.presentation`, docType: 'slide', title: '새 프레젠테이션.pptx' },
 }
 const DEMO_BOOT = Date.now().toString(36)
-const demoState = {
-  xlsx: { version: 1, savedCount: 0 },
-  docx: { version: 1, savedCount: 0 },
-  pptx: { version: 1, savedCount: 0 },
+// 세션 단위 상태: 'xlsx:shared'(협업) / 'xlsx:<sid>'(개인) — sid = 브라우저 식별자
+const demoState = {}
+const stateOf = (type, sid) => {
+  const k = `${type}:${sid || 'shared'}`
+  if (!demoState[k]) demoState[k] = { version: 1, savedCount: 0 }
+  return demoState[k]
 }
-const demoPath = (t) => join(DEMO_DATA, `sample.${t}`)
-const demoKey = (t) => `eo-demo-${t}-${DEMO_BOOT}-v${demoState[t].version}`
+// 개인 세션은 각자 파일 사본(p-<sid>.<type>), 협업은 공유 파일(sample.<type>)
+const demoFileName = (type, sid) => (sid ? `p-${sid}.${type}` : `sample.${type}`)
+const demoPath = (type, sid) => join(DEMO_DATA, demoFileName(type, sid))
+const demoKey = (type, sid) =>
+  `eo-demo-${type}-${sid || 'shared'}-${DEMO_BOOT}-v${stateOf(type, sid).version}`
+const sanitizeSid = (raw) => (raw || '').replace(/[^a-zA-Z0-9-]/g, '').slice(0, 40)
+
+async function ensureDemoFile(type, sid) {
+  mkdirSync(DEMO_DATA, { recursive: true })
+  if (!(await Bun.file(demoPath(type, sid)).exists())) {
+    const src = Bun.file(join(DEMO_SRC, `sample.${type}`))
+    if (await src.exists()) await Bun.write(demoPath(type, sid), src)
+  }
+}
 
 async function ensureDemoFiles() {
-  mkdirSync(DEMO_DATA, { recursive: true })
-  for (const t of Object.keys(DEMO_TYPES)) {
-    if (!(await Bun.file(demoPath(t)).exists())) {
-      const src = Bun.file(join(DEMO_SRC, `sample.${t}`))
-      if (await src.exists()) await Bun.write(demoPath(t), src)
-    }
-  }
+  for (const t of Object.keys(DEMO_TYPES)) await ensureDemoFile(t, '')
 }
 
 async function handleDemo(url, req) {
   const type = url.searchParams.get('type') || 'xlsx'
   if (!DEMO_TYPES[type]) return Response.json({ error: 'bad type' }, { status: 400, headers: CORS })
+  const sid = sanitizeSid(url.searchParams.get('session'))
 
   if (url.pathname === '/demo/status') {
+    await ensureDemoFile(type, sid)
+    const st = stateOf(type, sid)
     return Response.json(
       {
-        key: demoKey(type),
-        version: demoState[type].version,
-        savedCount: demoState[type].savedCount,
+        key: demoKey(type, sid),
+        version: st.version,
+        savedCount: st.savedCount,
         doc: {
-          url: `${DEMO_PUBLIC_URL}/demo/files/sample.${type}`,
-          callbackUrl: `${DEMO_PUBLIC_URL}/demo/callback?type=${type}`,
-          title: DEMO_TYPES[type].title,
+          url: `${DEMO_PUBLIC_URL}/demo/files/${demoFileName(type, sid)}`,
+          callbackUrl: `${DEMO_PUBLIC_URL}/demo/callback?type=${type}${sid ? `&session=${sid}` : ''}`,
+          title: sid
+            ? DEMO_TYPES[type].title
+            : DEMO_TYPES[type].title.replace(/\.(xlsx|docx|pptx)$/, ` (협업).$1`),
           fileType: type,
           documentType: DEMO_TYPES[type].docType,
         },
@@ -101,17 +114,17 @@ async function handleDemo(url, req) {
     )
   }
 
-  const fileMatch = url.pathname.match(/^\/demo\/files\/sample\.(xlsx|docx|pptx)$/)
+  const fileMatch = url.pathname.match(/^\/demo\/files\/(sample|p-[a-zA-Z0-9-]+)\.(xlsx|docx|pptx)$/)
   if (fileMatch) {
-    return new Response(Bun.file(demoPath(fileMatch[1])), {
-      headers: { ...CORS, 'Content-Type': DEMO_TYPES[fileMatch[1]].ct },
+    return new Response(Bun.file(join(DEMO_DATA, `${fileMatch[1]}.${fileMatch[2]}`)), {
+      headers: { ...CORS, 'Content-Type': DEMO_TYPES[fileMatch[2]].ct },
     })
   }
 
   // ONLYOFFICE 저장 callback — status 2(닫힘)/6(강제) 에 편집본 URL
   if (url.pathname === '/demo/callback' && req.method === 'POST') {
     const body = await req.json().catch(() => ({}))
-    console.log(`[demo] callback(${type}) status=${body.status}`)
+    console.log(`[demo] callback(${type}${sid ? `:${sid}` : ''}) status=${body.status}`)
     if ((body.status === 2 || body.status === 6) && body.url) {
       try {
         // DS 가 자기 관점 주소로 URL 을 만들 수 있어 host 를 서버 관점 DS 주소로 치환
@@ -120,10 +133,11 @@ async function handleDemo(url, req) {
         let res = await fetch(hostUrl)
         if (!res.ok) res = await fetch(body.url) // 치환 실패 시 원본 시도
         if (res.ok) {
-          demoState[type].savedCount += 1
-          demoState[type].version += 1
-          await Bun.write(demoPath(type), await res.arrayBuffer())
-          console.log(`[demo] ${type} 저장 → v${demoState[type].version}`)
+          const st = stateOf(type, sid)
+          st.savedCount += 1
+          st.version += 1
+          await Bun.write(demoPath(type, sid), await res.arrayBuffer())
+          console.log(`[demo] ${type}${sid ? `:${sid}` : ''} 저장 → v${st.version}`)
         }
       } catch (e) {
         console.error(`[demo] 저장 실패: ${e}`)
@@ -141,8 +155,17 @@ const server = Bun.serve({
     const url = new URL(req.url)
     if (req.method === 'OPTIONS') return new Response(null, { headers: CORS })
     let path = url.pathname === '/' ? '/host.html' : url.pathname
-    // standalone 경로 라우트: /excel /docs /slides → host.html (문서 타입은 bridge.js 가 경로에서 판별)
-    if (['/excel', '/docs', '/slides'].includes(path)) path = '/host.html'
+    // standalone 경로 라우트 → host.html (문서 타입/모드는 bridge.js 가 경로에서 판별)
+    //   /excel /docs /slides          = 개인 모드 (브라우저별 문서)
+    //   /collabo(/excel|/docs|/slides) = 협업 모드 (공유 문서 동시편집)
+    const STANDALONE = ['/excel', '/docs', '/slides']
+    if (
+      STANDALONE.includes(path) ||
+      path === '/collabo' ||
+      STANDALONE.some((p) => path === `/collabo${p}`)
+    ) {
+      path = '/host.html'
+    }
     if (path.includes('..')) return new Response('bad path', { status: 400 })
 
     if (DEMO_ENABLED && path.startsWith('/demo/')) return handleDemo(url, req)

@@ -16,7 +16,8 @@
 </head>
 <body>
   <div id="editor-root"><div id="editor"></div></div>
-  <script src="config.js"></script>
-  <script src="bridge.js"></script>
+  <!-- 절대경로 필수: /collabo/* 같은 하위 경로에서도 서빙되므로 상대경로는 404 -->
+  <script src="/config.js"></script>
+  <script src="/bridge.js"></script>
 </body>
 </html>
