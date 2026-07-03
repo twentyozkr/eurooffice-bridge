@@ -34,15 +34,15 @@ bun serve.mjs        # http://localhost:9030
 임베더에서: `<iframe src="http://localhost:9030/host.html" />` → `eo:ready` 수신 후
 `eo:load` 로 문서 로드. 문서 서빙/저장 callback 은 임베더 측 문서 서버 몫이다 (프로토콜 문서 참고).
 
-### DocumentServer 사설 IP 허용 (로컬 개발)
+### DocumentServer 컨테이너 패치 (필수, 1회)
 
-DS 는 기본으로 사설 IP 문서 URL 을 차단한다. 컨테이너의
-`/etc/euro-office/documentserver/local.json` 에 다음을 추가하고 `supervisorctl restart all`:
-
-```json
-{ "services": { "CoAuthoring": { "request-filtering-agent": {
-  "allowPrivateIPAddress": true, "allowMetaIPAddress": true } } } }
+```bash
+./ds-setup.sh eurooffice-poc
 ```
+
+새 컨테이너마다 실행 — ① 사설 IP 문서 URL 허용(request-filtering) ② 에디터 로고 클릭의
+기본 GitHub 링크 무효화(web-apps 번들 패치 — `customization.logo` 는 라이선스 canBranding
+게이트에 막혀 config 로는 불가). About 다이얼로그의 출처 표기는 유지한다.
 
 `bridge.js` 의 `ALLOWED_PARENT_ORIGINS`(임베더 origin) 와 `DS_URL`(`?ds=` 쿼리로 override) 을
 배포 환경에 맞게 조정한다.
