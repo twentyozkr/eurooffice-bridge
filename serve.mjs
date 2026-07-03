@@ -121,6 +121,20 @@ async function handleDemo(url, req) {
     })
   }
 
+  // 파일 업로드 — 올린 파일이 해당 세션의 현재 문서가 됨 (version bump → 새 key)
+  if (url.pathname === '/demo/upload' && req.method === 'POST') {
+    const bytes = await req.arrayBuffer()
+    const head = new Uint8Array(bytes.slice(0, 2))
+    if (head[0] !== 0x50 || head[1] !== 0x4b) {
+      return Response.json({ ok: false, error: 'OOXML 파일이 아님' }, { status: 400, headers: CORS })
+    }
+    await Bun.write(demoPath(type, sid), bytes)
+    const st = stateOf(type, sid)
+    st.version += 1
+    console.log(`[demo] ${type}${sid ? `:${sid}` : ''} 업로드 → v${st.version}`)
+    return Response.json({ ok: true, key: demoKey(type, sid) }, { headers: CORS })
+  }
+
   // ONLYOFFICE 저장 callback — status 2(닫힘)/6(강제) 에 편집본 URL
   if (url.pathname === '/demo/callback' && req.method === 'POST') {
     const body = await req.json().catch(() => ({}))

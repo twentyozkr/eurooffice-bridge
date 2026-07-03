@@ -9,7 +9,7 @@
  * - plugin 과는 MessageChannel 로 직결 (plugin 이 connect 핸드셰이크를 시작)
  */
 ;(() => {
-  const BRIDGE_VERSION = '0.5.0'
+  const BRIDGE_VERSION = '0.6.0'
   const PROTOCOL_V = 1
 
   // 배포 설정은 serve.mjs 가 env 로부터 생성하는 /config.js (window.EO_BRIDGE_CONFIG) 로 주입.
@@ -226,15 +226,18 @@
       params.get('status') || CFG.standaloneStatusUrl || `${location.origin}/demo/status`
     // 모드: /collabo 프리픽스 = 협업(공유 문서), 그 외 = 개인(브라우저별 문서)
     const isCollabo = location.pathname === '/collabo' || location.pathname.startsWith('/collabo/')
-    const subPath = isCollabo ? location.pathname.replace(/^\/collabo/, '') || '/excel' : location.pathname
+    const subPath = isCollabo
+      ? location.pathname.replace(/^\/collabo/, '') || '/excel'
+      : location.pathname
     // 문서 타입: ?type= 쿼리 > 경로(/docs, /slides, /excel) > xlsx
     const PATH_TYPES = { '/docs': 'docx', '/slides': 'pptx', '/excel': 'xlsx' }
     const type = params.get('type') || PATH_TYPES[subPath] || 'xlsx'
-    try {
+    const session = isCollabo ? '' : localUser().id
+
+    async function loadCurrent() {
       const statusUrl = new URL(statusBase)
       statusUrl.searchParams.set('type', type)
-      // 개인 모드: 브라우저 식별자를 세션으로 사용 → 각자 자기 문서/세션
-      if (!isCollabo) statusUrl.searchParams.set('session', localUser().id)
+      if (session) statusUrl.searchParams.set('session', session)
       const s = await (await fetch(statusUrl)).json()
       loadDocument({
         docType: s.doc.documentType,
@@ -245,12 +248,53 @@
         title: s.doc.title,
         callbackUrl: s.doc.callbackUrl,
       })
+    }
+
+    try {
+      await loadCurrent()
+      setupStandaloneOpenButton(type, session, statusBase, loadCurrent)
     } catch {
       showNotice(
         `standalone 모드: 문서 서버(${statusBase}) 접속 실패.<br/>` +
           `문서 서버가 떠 있어야 하며, ?status= 쿼리로 다른 엔드포인트를 지정할 수 있습니다.`,
       )
     }
+  }
+
+  // standalone 전용 "불러오기" 플로팅 버튼 — 문서 서버의 upload 엔드포인트로 교체 후 재로드
+  function setupStandaloneOpenButton(type, session, statusBase, reload) {
+    const uploadBase = statusBase.replace(/\/status$/, '/upload')
+    if (uploadBase === statusBase) return // status 엔드포인트 규약이 다르면 버튼 생략
+
+    const label = document.createElement('label')
+    label.textContent = '📂 불러오기'
+    label.style.cssText =
+      'position:fixed;right:16px;bottom:56px;z-index:100;background:#111827d9;color:#fff;' +
+      'padding:8px 14px;border-radius:8px;cursor:pointer;font:13px sans-serif;user-select:none'
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = `.${type}`
+    input.style.display = 'none'
+    input.addEventListener('change', async () => {
+      const file = input.files?.[0]
+      if (!file) return
+      label.textContent = '⏳ 업로드 중…'
+      try {
+        const uploadUrl = new URL(uploadBase)
+        uploadUrl.searchParams.set('type', type)
+        if (session) uploadUrl.searchParams.set('session', session)
+        const r = await (await fetch(uploadUrl, { method: 'POST', body: file })).json()
+        if (!r.ok) throw new Error(r.error || 'upload 실패')
+        await reload()
+      } catch (e) {
+        alert(`불러오기 실패: ${e?.message ?? e}`)
+      } finally {
+        label.textContent = '📂 불러오기'
+        input.value = ''
+      }
+    })
+    label.appendChild(input)
+    document.body.appendChild(label)
   }
 
   // ------------------------------------------------------------- 부팅
