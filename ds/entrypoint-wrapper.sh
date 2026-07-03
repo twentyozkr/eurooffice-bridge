@@ -16,10 +16,16 @@ fi
 
 # TLS 종료가 앞단 프록시에서 일어나고 X-Forwarded-Proto 가 유실되는 환경용:
 # nginx $the_scheme 기본값을 https 로 강제 → 리다이렉트/파일 URL 이 https 로 생성됨
-if [ "${EO_DS_FORCE_SCHEME:-}" = "https" ]; then
+# 값은 따옴표/공백/대소문자에 관대하게 해석한다 (배포 UI 입력 변형 대응)
+RAW_SCHEME="${EO_DS_FORCE_SCHEME:-}"
+NORM_SCHEME=$(echo "$RAW_SCHEME" | tr -d '"'"'"' ' | tr '[:upper:]' '[:lower:]')
+echo "[eo-ds] EO_DS_FORCE_SCHEME='${RAW_SCHEME}' → '${NORM_SCHEME}'"
+if [ "$NORM_SCHEME" = "https" ] || [ "$NORM_SCHEME" = "true" ] || [ "$NORM_SCHEME" = "1" ]; then
   sed -i 's|default $scheme;|default https;|' \
     /etc/euro-office/documentserver/nginx/includes/http-common.conf
-  echo "[eo-ds] the_scheme 강제 https (EO_DS_FORCE_SCHEME)"
+  echo "[eo-ds] the_scheme 강제 https 적용"
+else
+  echo "[eo-ds] the_scheme 강제 미적용 (값이 https/true/1 아님)"
 fi
 
 exec /entrypoint.sh "$@"
