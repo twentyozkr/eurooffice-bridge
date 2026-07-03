@@ -38,6 +38,8 @@ const server = Bun.serve({
   async fetch(req) {
     const url = new URL(req.url)
     let path = url.pathname === '/' ? '/host.html' : url.pathname
+    // standalone 경로 라우트: /excel /docs /slides → host.html (문서 타입은 bridge.js 가 경로에서 판별)
+    if (['/excel', '/docs', '/slides'].includes(path)) path = '/host.html'
     if (path.includes('..')) return new Response('bad path', { status: 400 })
 
     if (path === '/config.js') {
