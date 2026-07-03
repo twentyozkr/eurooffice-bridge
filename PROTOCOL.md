@@ -1,0 +1,52 @@
+# eo-bridge 프로토콜 v1
+
+works-ui(임베더) ↔ eo-bridge(브릿지 페이지) 간 `window.postMessage` JSON 프로토콜.
+
+> ⚠ 이 문서가 경계의 정본이다. 임베더는 이 문서를 보고 **자체적으로** 타입/클라이언트를 작성한다.
+> 브릿지 저장소의 코드(AGPL)를 임베더 쪽으로 복사·공유하지 않는다.
+
+## 봉투 (Envelope)
+
+```json
+{ "v": 1, "id": "req-3", "type": "eo:load", "payload": { } }
+```
+
+- `v`: 프로토콜 버전 (현재 1)
+- `id`: 요청/응답 상관관계 키. 요청에만 존재, 응답은 같은 id 를 echo. 이벤트에는 없음
+- 응답 type = 요청 type + `:result`
+- 모든 응답 payload 는 `{ ok: boolean, error?: string, ... }`
+
+## 요청 (임베더 → 브릿지)
+
+| type | payload | 응답 payload |
+|---|---|---|
+| `eo:load` | `{ docType: "cell", mode: "edit"\|"view", key, url, title, callbackUrl?, lang? }` | `{ ok }` — 이후 `eo:documentReady` 이벤트가 실제 로드 완료 신호 |
+| `eo:insertPlaceholder` | `{ dataName }` — 활성 셀에 `#{dataName}` 삽입 (edit 모드 전용) | `{ ok, address, value }` |
+| `eo:getActiveCell` | `{}` | `{ ok, address, value }` |
+| `eo:destroy` | `{}` | `{ ok }` |
+
+- `url` / `callbackUrl` 은 **DocumentServer 컨테이너 관점** 주소여야 한다 (예: `http://host.docker.internal:9020/...`)
+- `key` 는 DocumentServer 캐시 키 — 문서 내용이 바뀌면 반드시 새 key 로 `eo:load`
+
+## 이벤트 (브릿지 → 임베더, id 없음)
+
+| type | payload | 시점 |
+|---|---|---|
+| `eo:ready` | `{ version }` | 브릿지 페이지 준비 완료 (이후 요청 수신 가능) |
+| `eo:documentReady` | `{ key }` | 에디터 문서 로드 완료 |
+| `eo:selectionChanged` | `{ address, value }` | 활성 셀 변경 (best-effort, edit 모드) |
+| `eo:error` | `{ code, message }` | 에디터/브릿지 오류 |
+
+## 보안
+
+- 양방향 모두 `event.origin` 을 allowlist 로 검증한다
+  - 브릿지: `bridge.js` 상단 `ALLOWED_PARENT_ORIGINS`
+  - 임베더: 브릿지 origin 만 신뢰
+- `postMessage` 호출 시 targetOrigin 을 명시한다 (`*` 금지)
+
+## 저장(save)은 이 프로토콜 밖이다
+
+저장은 DocumentServer ↔ 문서서버(callback) 간 서버-사이드 REST 로 일어난다.
+강제 저장은 임베더가 자기 문서서버의 forcesave 엔드포인트를 호출하면, 문서서버가
+DS command service (`POST {DS}/command`, `{ c: "forcesave", key }`) 를 부른다.
+브릿지는 문서 상태를 저장하지 않는다.

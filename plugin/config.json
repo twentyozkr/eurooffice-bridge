@@ -1,0 +1,21 @@
+{
+  "name": "eo-bridge agent",
+  "nameLocale": { "ko": "eo-bridge agent" },
+  "guid": "asc.{7A1F5E92-4B3C-4D68-9A20-3F84C1E7B052}",
+  "variations": [
+    {
+      "description": "eo-bridge 메시지 에이전트 — placeholder 삽입/셀 조회를 MessageChannel 로 처리",
+      "url": "index.html",
+      "icons": ["icon.png"],
+      "isViewer": false,
+      "EditorsSupport": ["cell"],
+      "isVisual": false,
+      "isModal": false,
+      "isInsideMode": false,
+      "initDataType": "none",
+      "initData": "",
+      "buttons": [],
+      "events": []
+    }
+  ]
+}

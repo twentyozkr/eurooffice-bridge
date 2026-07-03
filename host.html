@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<!--
+  eo-bridge — EuroOffice(ONLYOFFICE 포크) DocumentServer 임베드 브릿지 페이지 (AGPL v3)
+
+  임베더(상용 앱)는 이 페이지를 iframe 으로 띄우고 PROTOCOL.md 의 postMessage
+  프로토콜로만 대화한다. AGPL 코드(api.js/DocsAPI/plugin)는 전부 이 origin 안에 격리된다.
+-->
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <title>eo-bridge</title>
+  <style>
+    html, body { height: 100%; margin: 0; }
+    #editor-root { height: 100%; }
+  </style>
+</head>
+<body>
+  <div id="editor-root"><div id="editor"></div></div>
+  <script src="bridge.js"></script>
+</body>
+</html>
