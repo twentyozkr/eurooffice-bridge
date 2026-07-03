@@ -21,9 +21,20 @@ RAW_SCHEME="${EO_DS_FORCE_SCHEME:-}"
 NORM_SCHEME=$(echo "$RAW_SCHEME" | tr -d '"'"'"' ' | tr '[:upper:]' '[:lower:]')
 echo "[eo-ds] EO_DS_FORCE_SCHEME='${RAW_SCHEME}' → '${NORM_SCHEME}'"
 if [ "$NORM_SCHEME" = "https" ] || [ "$NORM_SCHEME" = "true" ] || [ "$NORM_SCHEME" = "1" ]; then
-  sed -i 's|default $scheme;|default https;|' \
-    /etc/euro-office/documentserver/nginx/includes/http-common.conf
-  echo "[eo-ds] the_scheme 강제 https 적용"
+  # 주의: 앞단 프록시가 X-Forwarded-Proto 를 "http" 로 보내는 경우 default 교체로는
+  # 부족하다 (map 이 헤더값을 우선 사용) → $the_scheme map 블록 전체를 https 로 고정
+  python3 - <<'PYEOF'
+import re
+p = "/etc/euro-office/documentserver/nginx/includes/http-common.conf"
+s = open(p).read()
+s2 = re.sub(
+    r"map [^\n]*\$the_scheme \{[^}]*\}",
+    "map \"\" $the_scheme {\n     default https;\n}",
+    s,
+)
+open(p, "w").write(s2)
+print("[eo-ds] the_scheme map 전체를 https 로 고정")
+PYEOF
 else
   echo "[eo-ds] the_scheme 강제 미적용 (값이 https/true/1 아님)"
 fi
