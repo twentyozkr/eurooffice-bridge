@@ -8,7 +8,7 @@
       "url": "index.html",
       "icons": ["icon.png"],
       "isViewer": false,
-      "EditorsSupport": ["cell"],
+      "EditorsSupport": ["cell", "word", "slide"],
       "isVisual": false,
       "isModal": false,
       "isInsideMode": false,

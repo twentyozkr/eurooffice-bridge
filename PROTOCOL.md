@@ -20,9 +20,9 @@ works-ui(임베더) ↔ eo-bridge(브릿지 페이지) 간 `window.postMessage` 
 
 | type | payload | 응답 payload |
 |---|---|---|
-| `eo:load` | `{ docType: "cell", mode: "edit"\|"view", key, url, title, callbackUrl?, lang? }` | `{ ok }` — 이후 `eo:documentReady` 이벤트가 실제 로드 완료 신호 |
-| `eo:insertPlaceholder` | `{ dataName }` — 활성 셀에 `#{dataName}` 삽입 (edit 모드 전용) | `{ ok, address, value }` |
-| `eo:getActiveCell` | `{}` | `{ ok, address, value }` |
+| `eo:load` | `{ docType: "cell"\|"word"\|"slide", fileType: "xlsx"\|"docx"\|"pptx", mode: "edit"\|"view", key, url, title, callbackUrl?, lang? }` | `{ ok }` — 이후 `eo:documentReady` 이벤트가 실제 로드 완료 신호 |
+| `eo:insertPlaceholder` | `{ dataName }` — cell: 활성 셀 값 교체 / word·slide: 커서 위치에 텍스트 삽입 (edit 모드 전용) | `{ ok, address, value }` |
+| `eo:getActiveCell` | `{}` (cell 에디터 전용) | `{ ok, address, value }` |
 | `eo:destroy` | `{}` | `{ ok }` |
 
 - `url` / `callbackUrl` 은 **DocumentServer 컨테이너 관점** 주소여야 한다 (예: `http://host.docker.internal:9020/...`)

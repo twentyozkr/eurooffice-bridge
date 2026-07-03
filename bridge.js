@@ -105,7 +105,7 @@
       width: '100%',
       height: '100%',
       document: {
-        fileType: 'xlsx',
+        fileType: p.fileType || 'xlsx',
         key: p.key,
         title: p.title || 'document.xlsx',
         url: p.url,

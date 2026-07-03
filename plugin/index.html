@@ -18,6 +18,11 @@
   <script>
     var port = null
 
+    // 'cell' | 'word' | 'slide'
+    function editorType() {
+      return (window.Asc.plugin.info && window.Asc.plugin.info.editorType) || 'cell'
+    }
+
     function getActiveCell(done) {
       window.Asc.plugin.callCommand(function () {
         var cell = Api.GetActiveSheet().GetActiveCell()
@@ -29,21 +34,33 @@
 
     function handleRequest(msg) {
       if (msg.type === 'insertPlaceholder') {
-        window.Asc.scope.name = String(msg.dataName || '')
-        window.Asc.plugin.callCommand(function () {
-          var cell = Api.GetActiveSheet().GetActiveCell()
-          cell.SetValue('#{' + Asc.scope.name + '}')
-        }, false, true, function () {
-          getActiveCell(function (cell) {
-            port.postMessage({
-              id: msg.id, ok: !!cell,
-              address: cell && cell.address, value: cell && cell.value,
+        var text = '#{' + String(msg.dataName || '') + '}'
+        if (editorType() === 'cell') {
+          window.Asc.scope.text = text
+          window.Asc.plugin.callCommand(function () {
+            var cell = Api.GetActiveSheet().GetActiveCell()
+            cell.SetValue(Asc.scope.text)
+          }, false, true, function () {
+            getActiveCell(function (cell) {
+              port.postMessage({
+                id: msg.id, ok: !!cell,
+                address: cell && cell.address, value: cell && cell.value,
+              })
             })
           })
-        })
+        } else {
+          // word/slide: 커서(선택) 위치에 텍스트 삽입
+          window.Asc.plugin.executeMethod('PasteText', [text], function () {
+            port.postMessage({ id: msg.id, ok: true, address: '(커서 위치)', value: text })
+          })
+        }
         return
       }
       if (msg.type === 'getActiveCell') {
+        if (editorType() !== 'cell') {
+          port.postMessage({ id: msg.id, ok: false, error: 'cell 에디터 전용' })
+          return
+        }
         getActiveCell(function (cell) {
           port.postMessage({
             id: msg.id, ok: !!cell,
@@ -66,9 +83,9 @@
         [channel.port2],
       )
 
-      // 선택 변경 push (에디터가 이벤트를 지원할 때만 — best effort)
+      // 선택 변경 push (cell 전용, 에디터가 이벤트를 지원할 때만 — best effort)
       var debounce = null
-      if (window.Asc.plugin.attachEditorEvent) {
+      if (editorType() === 'cell' && window.Asc.plugin.attachEditorEvent) {
         window.Asc.plugin.attachEditorEvent('onSelectionChanged', function () {
           clearTimeout(debounce)
           debounce = setTimeout(function () {
