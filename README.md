@@ -44,8 +44,21 @@ bun serve.mjs        # http://localhost:9030
 기본 GitHub 링크 무효화(web-apps 번들 패치 — `customization.logo` 는 라이선스 canBranding
 게이트에 막혀 config 로는 불가). About 다이얼로그의 출처 표기는 유지한다.
 
-`bridge.js` 의 `ALLOWED_PARENT_ORIGINS`(임베더 origin) 와 `DS_URL`(`?ds=` 쿼리로 override) 을
-배포 환경에 맞게 조정한다.
+## 배포 (Dokploy / 컨테이너)
+
+동봉된 `Dockerfile` 로 그대로 배포한다 (정적 서버, 상태 없음). 환경변수:
+
+| env | 설명 | 예 |
+|---|---|---|
+| `EO_ALLOWED_PARENT_ORIGINS` | 임베더 origin allowlist (콤마 구분) — **미설정 시 localhost 만 허용** | `https://works.example.com` |
+| `EO_DS_URL` | DocumentServer 주소 (브라우저 관점) | `https://ds.example.com` |
+| `PORT` | 리슨 포트 (기본 9030) | |
+
+헬스체크: `GET /healthz`. 로컬 개발은 env 없이 `bun serve.mjs` (localhost 기본값).
+
+배포 전제: DocumentServer 도 함께 배포돼 있어야 하며(`ds-setup.sh` 패치 포함),
+브라우저에서 브릿지·DS 둘 다 접근 가능해야 한다. **운영에서는 DS 의 JWT 를 켜고
+문서 서버가 토큰을 서명하는 구성이 필요하다** (임베더 측 작업).
 
 ## 라이선스
 

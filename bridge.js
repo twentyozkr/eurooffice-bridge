@@ -12,11 +12,17 @@
   const BRIDGE_VERSION = '0.1.0'
   const PROTOCOL_V = 1
 
-  // 임베더 origin allowlist — 배포 환경에 맞게 수정
-  const ALLOWED_PARENT_ORIGINS = ['http://localhost:9000', 'http://127.0.0.1:9000']
+  // 배포 설정은 serve.mjs 가 env 로부터 생성하는 /config.js (window.EO_BRIDGE_CONFIG) 로 주입.
+  // 없으면 로컬 개발 기본값.
+  const CFG = window.EO_BRIDGE_CONFIG || {}
+  const ALLOWED_PARENT_ORIGINS = CFG.allowedParentOrigins || [
+    'http://localhost:9000',
+    'http://127.0.0.1:9000',
+  ]
 
-  // DocumentServer 주소 (브라우저 관점). ?ds= 쿼리로 override 가능
-  const DS_URL = new URLSearchParams(location.search).get('ds') || 'http://localhost:9080'
+  // DocumentServer 주소 (브라우저 관점). ?ds= 쿼리 > env 설정 > 로컬 기본값
+  const DS_URL =
+    new URLSearchParams(location.search).get('ds') || CFG.dsUrl || 'http://localhost:9080'
 
   const PLUGIN_GUID = 'asc.{7A1F5E92-4B3C-4D68-9A20-3F84C1E7B052}'
 
