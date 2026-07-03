@@ -9,7 +9,7 @@
  * - plugin 과는 MessageChannel 로 직결 (plugin 이 connect 핸드셰이크를 시작)
  */
 ;(() => {
-  const BRIDGE_VERSION = '0.2.1'
+  const BRIDGE_VERSION = '0.3.0'
   const PROTOCOL_V = 1
 
   // 배포 설정은 serve.mjs 가 env 로부터 생성하는 /config.js (window.EO_BRIDGE_CONFIG) 로 주입.
@@ -201,8 +201,9 @@
 
   async function bootStandalone() {
     const params = new URLSearchParams(location.search)
+    // 기본은 같은 origin 의 내장 데모 문서 서버 — 브릿지 단독으로 완전 동작
     const statusBase =
-      params.get('status') || CFG.standaloneStatusUrl || 'http://localhost:9020/status'
+      params.get('status') || CFG.standaloneStatusUrl || `${location.origin}/demo/status`
     // 문서 타입: ?type= 쿼리 > 경로(/docs, /slides, /excel) > xlsx
     const PATH_TYPES = { '/docs': 'docx', '/slides': 'pptx', '/excel': 'xlsx' }
     const type = params.get('type') || PATH_TYPES[location.pathname] || 'xlsx'

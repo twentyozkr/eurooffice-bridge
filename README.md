@@ -51,8 +51,16 @@ bun serve.mjs        # http://localhost:9030
 | env | 설명 | 예 |
 |---|---|---|
 | `EO_ALLOWED_PARENT_ORIGINS` | 임베더 origin allowlist (콤마 구분) — **미설정 시 localhost 만 허용** | `https://works.example.com` |
-| `EO_DS_URL` | DocumentServer 주소 (브라우저 관점) | `https://ds.example.com` |
+| `EO_DS_URL` | DocumentServer 주소 | `https://ds.example.com` |
+| `EO_PUBLIC_URL` | 이 서버의 공개 주소 — DS 가 데모 문서를 가져갈 때 사용 (미설정 시 로컬 Docker 용 `host.docker.internal`) | `https://bridge.example.com` |
+| `EO_DEMO_DOCS` | `false` 로 내장 데모 문서 서버 끄기 | |
 | `PORT` | 리슨 포트 (기본 9030) | |
+
+### standalone / 데모 문서 서버
+
+`/excel` `/docs` `/slides` 경로(또는 `host.html?type=`)로 직접 열면 내장 데모 문서
+서버(`/demo/*`)로 즉시 편집 가능하다 — 임베더 없이 브릿지+DS 만으로 완전 동작.
+실제 연동에서는 임베더 측 문서 서버가 문서 서빙/저장을 맡는다 (`?status=` 로 지정 가능).
 
 헬스체크: `GET /healthz`. 로컬 개발은 env 없이 `bun serve.mjs` (localhost 기본값).
 

@@ -1,4 +1,4 @@
-// eo-bridge 정적 서버 (Bun) — 브릿지 페이지 + plugin 서빙
+// eo-bridge 정적 서버 (Bun) — 브릿지 페이지 + plugin + 데모 문서 서버
 //
 // 실행: bun serve.mjs   (기본 9030)
 // - 임베더와 다른 origin 에서 서빙하는 것이 격리 구조의 전제
@@ -6,8 +6,12 @@
 //
 // 배포 env (없으면 로컬 개발 기본값):
 //   EO_ALLOWED_PARENT_ORIGINS  임베더 origin 목록 (콤마 구분, 예: https://works.example.com)
-//   EO_DS_URL                  DocumentServer 주소 (브라우저 관점, 예: https://ds.example.com)
+//   EO_DS_URL                  DocumentServer 주소 (예: https://ds.example.com)
+//   EO_PUBLIC_URL              이 서버의 공개 주소 — DS 가 데모 문서를 가져갈 때 사용
+//                              (미설정 시 http://host.docker.internal:PORT — 로컬 Docker DS 용)
+//   EO_DEMO_DOCS               'false' 로 데모 문서 서버 비활성화
 //   PORT                       리슨 포트 (기본 9030)
+import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 
 const PORT = Number(process.env.PORT || 9030)
@@ -33,18 +37,119 @@ const MIME = {
   '.md': 'text/markdown; charset=utf-8',
 }
 
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': '*',
+}
+
+// ---------------------------------------------------------------- 데모 문서 서버
+// standalone 페이지가 임베더 없이도 완전 동작하도록 하는 최소 문서 서빙/저장.
+// 실제 연동에서는 임베더 측 문서 서버가 이 역할을 한다 (PROTOCOL.md 참고).
+const DEMO_ENABLED = process.env.EO_DEMO_DOCS !== 'false'
+const DEMO_SRC = join(import.meta.dir, 'demo-files')
+const DEMO_DATA = join(process.env.TMPDIR || '/tmp', 'eo-bridge-demo')
+// DS(서버측)가 문서를 가져갈 때 쓰는 이 서버의 주소
+const DEMO_PUBLIC_URL = process.env.EO_PUBLIC_URL || `http://host.docker.internal:${PORT}`
+// callback 의 편집본 URL host 치환용 (서버 관점 DS 주소)
+const DS_FETCH_URL = process.env.EO_DS_URL || 'http://localhost:9080'
+
+const OOXML = 'application/vnd.openxmlformats-officedocument'
+const DEMO_TYPES = {
+  xlsx: { ct: `${OOXML}.spreadsheetml.sheet`, docType: 'cell', title: '새 스프레드시트.xlsx' },
+  docx: { ct: `${OOXML}.wordprocessingml.document`, docType: 'word', title: '새 문서.docx' },
+  pptx: { ct: `${OOXML}.presentationml.presentation`, docType: 'slide', title: '새 프레젠테이션.pptx' },
+}
+const DEMO_BOOT = Date.now().toString(36)
+const demoState = {
+  xlsx: { version: 1, savedCount: 0 },
+  docx: { version: 1, savedCount: 0 },
+  pptx: { version: 1, savedCount: 0 },
+}
+const demoPath = (t) => join(DEMO_DATA, `sample.${t}`)
+const demoKey = (t) => `eo-demo-${t}-${DEMO_BOOT}-v${demoState[t].version}`
+
+async function ensureDemoFiles() {
+  mkdirSync(DEMO_DATA, { recursive: true })
+  for (const t of Object.keys(DEMO_TYPES)) {
+    if (!(await Bun.file(demoPath(t)).exists())) {
+      const src = Bun.file(join(DEMO_SRC, `sample.${t}`))
+      if (await src.exists()) await Bun.write(demoPath(t), src)
+    }
+  }
+}
+
+async function handleDemo(url, req) {
+  const type = url.searchParams.get('type') || 'xlsx'
+  if (!DEMO_TYPES[type]) return Response.json({ error: 'bad type' }, { status: 400, headers: CORS })
+
+  if (url.pathname === '/demo/status') {
+    return Response.json(
+      {
+        key: demoKey(type),
+        version: demoState[type].version,
+        savedCount: demoState[type].savedCount,
+        doc: {
+          url: `${DEMO_PUBLIC_URL}/demo/files/sample.${type}`,
+          callbackUrl: `${DEMO_PUBLIC_URL}/demo/callback?type=${type}`,
+          title: DEMO_TYPES[type].title,
+          fileType: type,
+          documentType: DEMO_TYPES[type].docType,
+        },
+      },
+      { headers: CORS },
+    )
+  }
+
+  const fileMatch = url.pathname.match(/^\/demo\/files\/sample\.(xlsx|docx|pptx)$/)
+  if (fileMatch) {
+    return new Response(Bun.file(demoPath(fileMatch[1])), {
+      headers: { ...CORS, 'Content-Type': DEMO_TYPES[fileMatch[1]].ct },
+    })
+  }
+
+  // ONLYOFFICE 저장 callback — status 2(닫힘)/6(강제) 에 편집본 URL
+  if (url.pathname === '/demo/callback' && req.method === 'POST') {
+    const body = await req.json().catch(() => ({}))
+    console.log(`[demo] callback(${type}) status=${body.status}`)
+    if ((body.status === 2 || body.status === 6) && body.url) {
+      try {
+        // DS 가 자기 관점 주소로 URL 을 만들 수 있어 host 를 서버 관점 DS 주소로 치환
+        const u = new URL(body.url)
+        const hostUrl = `${DS_FETCH_URL}${u.pathname}${u.search}`
+        let res = await fetch(hostUrl)
+        if (!res.ok) res = await fetch(body.url) // 치환 실패 시 원본 시도
+        if (res.ok) {
+          demoState[type].savedCount += 1
+          demoState[type].version += 1
+          await Bun.write(demoPath(type), await res.arrayBuffer())
+          console.log(`[demo] ${type} 저장 → v${demoState[type].version}`)
+        }
+      } catch (e) {
+        console.error(`[demo] 저장 실패: ${e}`)
+      }
+    }
+    return Response.json({ error: 0 }, { headers: CORS })
+  }
+
+  return new Response('not found', { status: 404, headers: CORS })
+}
+
 const server = Bun.serve({
   port: PORT,
   async fetch(req) {
     const url = new URL(req.url)
+    if (req.method === 'OPTIONS') return new Response(null, { headers: CORS })
     let path = url.pathname === '/' ? '/host.html' : url.pathname
     // standalone 경로 라우트: /excel /docs /slides → host.html (문서 타입은 bridge.js 가 경로에서 판별)
     if (['/excel', '/docs', '/slides'].includes(path)) path = '/host.html'
     if (path.includes('..')) return new Response('bad path', { status: 400 })
 
+    if (DEMO_ENABLED && path.startsWith('/demo/')) return handleDemo(url, req)
+
     if (path === '/config.js') {
       return new Response(CONFIG_JS, {
-        headers: { 'Content-Type': MIME['.js'], 'Cache-Control': 'no-store' },
+        headers: { ...CORS, 'Content-Type': MIME['.js'], 'Cache-Control': 'no-store' },
       })
     }
     if (path === '/healthz') return new Response('ok', { status: 200 })
@@ -55,11 +160,12 @@ const server = Bun.serve({
     const ext = path.slice(path.lastIndexOf('.'))
     return new Response(file, {
       headers: {
+        ...CORS,
         'Content-Type': MIME[ext] || 'application/octet-stream',
-        'Access-Control-Allow-Origin': '*',
         'Cache-Control': 'no-store',
       },
     })
   },
 })
-console.log(`[eo-bridge] http://localhost:${server.port}`)
+if (DEMO_ENABLED) await ensureDemoFiles()
+console.log(`[eo-bridge] http://localhost:${server.port} (demo docs: ${DEMO_ENABLED ? 'on' : 'off'})`)
