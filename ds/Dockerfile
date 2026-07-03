@@ -11,6 +11,14 @@ RUN cd /var/www/euro-office/documentserver/web-apps/apps && \
       sed -i "s|logo.url:'https://github.com/euro-office'|logo.url:''|g" "$ed/main/ie/app.js" || true; \
     done
 
+# URL 스킴을 호스트명 기반으로 판별 (빌드 타임 — env 불필요, 로컬/배포 자동 대응)
+COPY patch-scheme.py /patch-scheme.py
+RUN python3 /patch-scheme.py
+
+# 배포 상태를 밖에서 확인할 수 있는 빌드 마커: GET /web-apps/apps/api/documents/eo-build.txt
+RUN date -u '+eo-ds-build %Y-%m-%dT%H:%M:%SZ hostmap-v1' \
+    > /var/www/euro-office/documentserver/web-apps/apps/api/documents/eo-build.txt
+
 # EO_DS_ALLOW_PRIVATE_IP=true 면 기동 시 사설 IP 문서 URL 허용을 주입.
 # 로컬 compose(문서 서버가 사설 주소) 전용 — 공개 배포에서는 반드시 false (SSRF 방지).
 COPY entrypoint-wrapper.sh /entrypoint-wrapper.sh
