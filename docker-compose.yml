@@ -31,4 +31,6 @@ services:
       # 로컬 compose 는 데모 문서 URL(http://bridge:9030)이 사설 주소라 허용 필요.
       # 공개 배포(EO_PUBLIC_URL 이 공인 도메인)에서는 false 로!
       EO_DS_ALLOW_PRIVATE_IP: ${EO_DS_ALLOW_PRIVATE_IP:-true}
+      # 앞단 프록시가 X-Forwarded-Proto 를 유실시키면 https 로 강제 (배포 시 https)
+      EO_DS_FORCE_SCHEME: ${EO_DS_FORCE_SCHEME:-}
     restart: unless-stopped
