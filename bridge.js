@@ -9,7 +9,7 @@
  * - plugin 과는 MessageChannel 로 직결 (plugin 이 connect 핸드셰이크를 시작)
  */
 ;(() => {
-  const BRIDGE_VERSION = '0.3.1'
+  const BRIDGE_VERSION = '0.4.0'
   const PROTOCOL_V = 1
 
   // 배포 설정은 serve.mjs 가 env 로부터 생성하는 /config.js (window.EO_BRIDGE_CONFIG) 로 주입.
@@ -87,6 +87,26 @@
     }
   })
 
+  // ------------------------------------------------------- 사용자 식별
+  // 임베더가 eo:load 의 user 로 실제 사용자를 넘기는 것이 정석.
+  // 없으면 브라우저별 고유 식별자를 생성해 localStorage 에 유지 (협업 시 서로 구분됨)
+  function localUser() {
+    try {
+      const saved = JSON.parse(localStorage.getItem('eo-bridge-user') || 'null')
+      if (saved?.id && saved?.name) return saved
+    } catch {
+      /* 파싱 실패 시 재생성 */
+    }
+    const suffix = Math.random().toString(36).slice(2, 6).toUpperCase()
+    const user = { id: `eo-${Date.now().toString(36)}-${suffix}`, name: `사용자-${suffix}` }
+    try {
+      localStorage.setItem('eo-bridge-user', JSON.stringify(user))
+    } catch {
+      /* 저장 불가 환경이면 세션 한정 */
+    }
+    return user
+  }
+
   // ------------------------------------------------------- 에디터 로드/파기
   function destroyEditor() {
     if (docEditor) {
@@ -120,7 +140,7 @@
       editorConfig: {
         mode,
         lang: p.lang || 'ko-KR',
-        user: { id: 'eo-bridge-user', name: p.userName || '사용자' },
+        user: p.user?.id && p.user?.name ? { id: p.user.id, name: p.user.name } : localUser(),
         customization: {
           autosave: true,
           forcesave: true,
