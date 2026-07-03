@@ -119,13 +119,10 @@
           autosave: true,
           forcesave: true,
           compactHeader: true,
-          // 좌측 상단 로고: 임베더가 eo:load 의 logo 로 브랜딩 주입, 기본은 빈 로고(외부 링크 제거).
-          // euro-office 는 §7(b) 로고 강제 조항이 제거된 순수 AGPL 이라 교체 가능
-          logo: p.logo || {
-            image: `${location.origin}/blank-logo.png`,
-            imageDark: `${location.origin}/blank-logo.png`,
-            url: '',
-          },
+          // 좌측 상단 로고: 아이콘(이미지)은 유지하되 외부(GitHub) 클릭 링크만 무효화.
+          // 임베더가 eo:load 의 logo 로 자체 브랜딩(image/url) 주입 가능.
+          // euro-office 는 §7(b) 로고 강제 조항이 제거된 순수 AGPL 이라 커스터마이징 합법
+          logo: p.logo || { url: '' },
         },
       },
       events: {
