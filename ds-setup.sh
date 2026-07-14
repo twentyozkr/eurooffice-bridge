@@ -52,6 +52,13 @@ for ed in spreadsheeteditor documenteditor presentationeditor; do
   sed -i "s|canBrandingExt=params.asc_getCanBranding()\&\&|canBrandingExt=|g" "$ed/main/ie/app.js" 2>/dev/null || true
 done'
 
+echo "[2.7/3] IME 조합 중 undo/redo 키 차단 (조합 버퍼 왕복 버그 회피)"
+docker exec "$CONTAINER" bash -c '
+cd /var/www/euro-office/documentserver/sdkjs
+for ed in cell word slide; do
+  sed -i "s#CTextInputPrototype.onKeyDown=function(e){#CTextInputPrototype.onKeyDown=function(e){if(this.IsComposition\&\&(e.metaKey||e.ctrlKey)\&\&(90===e.keyCode||89===e.keyCode||\"z\"===e.key||\"Z\"===e.key||\"y\"===e.key||\"Y\"===e.key)){AscCommon.stopEvent(e);return false}#" "$ed/sdk-all.js"
+done'
+
 echo "[3/3] 서비스 재시작"
 docker exec "$CONTAINER" bash -c 'supervisorctl restart all >/dev/null'
 echo "완료 — healthcheck 대기 후 사용: curl http://localhost:9080/healthcheck"

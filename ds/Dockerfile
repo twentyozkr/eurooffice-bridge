@@ -20,6 +20,14 @@ RUN cd /var/www/euro-office/documentserver/web-apps/apps && \
       sed -i 's|canBrandingExt=params.asc_getCanBranding()&&|canBrandingExt=|g' "$ed/main/ie/app.js" || true; \
     done
 
+# 한글 등 IME 조합 중 Cmd/Ctrl+Z(undo)·Y(redo) 차단 — 조합 미확정 상태에서 브라우저의
+# 네이티브 contenteditable undo 가 조합 버퍼만 왕복시키는 버그 회피. 조합 확정 후 undo 는 정상.
+# ⚠ AGPL 수정에 해당 — 이 Dockerfile(공개 저장소)이 수정 내용의 공개 그 자체다.
+RUN cd /var/www/euro-office/documentserver/sdkjs && \
+    for ed in cell word slide; do \
+      sed -i 's#CTextInputPrototype.onKeyDown=function(e){#CTextInputPrototype.onKeyDown=function(e){if(this.IsComposition\&\&(e.metaKey||e.ctrlKey)\&\&(90===e.keyCode||89===e.keyCode||"z"===e.key||"Z"===e.key||"y"===e.key||"Y"===e.key)){AscCommon.stopEvent(e);return false}#' "$ed/sdk-all.js"; \
+    done
+
 # URL 스킴을 호스트명 기반으로 판별 (빌드 타임 — env 불필요, 로컬/배포 자동 대응)
 COPY patch-scheme.py /patch-scheme.py
 RUN python3 /patch-scheme.py
