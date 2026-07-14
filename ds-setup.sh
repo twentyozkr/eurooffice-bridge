@@ -52,11 +52,12 @@ for ed in spreadsheeteditor documenteditor presentationeditor; do
   sed -i "s|canBrandingExt=params.asc_getCanBranding()\&\&|canBrandingExt=|g" "$ed/main/ie/app.js" 2>/dev/null || true
 done'
 
-echo "[2.7/3] IME 조합 중 undo/redo 키 차단 (조합 버퍼 왕복 버그 회피)"
+echo "[2.7/3] IME 조합 중 undo/redo 차단 (조합 버퍼 왕복 버그 회피 — keydown + beforeinput)"
 docker exec "$CONTAINER" bash -c '
 cd /var/www/euro-office/documentserver/sdkjs
 for ed in cell word slide; do
-  sed -i "s#CTextInputPrototype.onKeyDown=function(e){#CTextInputPrototype.onKeyDown=function(e){if(this.IsComposition\&\&(e.metaKey||e.ctrlKey)\&\&(90===e.keyCode||89===e.keyCode||\"z\"===e.key||\"Z\"===e.key||\"y\"===e.key||\"Y\"===e.key)){AscCommon.stopEvent(e);return false}#" "$ed/sdk-all.js"
+  sed -i "s#CTextInputPrototype.onKeyDown=function(e){#CTextInputPrototype.onKeyDown=function(e){if(this.IsComposition\&\&(e.metaKey||e.ctrlKey)\&\&(90===e.keyCode||89===e.keyCode||229===e.keyCode||\"z\"===e.key||\"Z\"===e.key||\"y\"===e.key||\"Y\"===e.key)){AscCommon.stopEvent(e);return false}#" "$ed/sdk-all.js"
+  sed -i "s#var inputEvents=\[\"input\",\"compositionstart\",\"compositionupdate\",\"compositionend\"\];#this.HtmlArea.addEventListener(\"beforeinput\",function(e){var t=e.inputType;if(\"historyUndo\"===t||\"historyRedo\"===t)e.preventDefault()},false);var inputEvents=[\"input\",\"compositionstart\",\"compositionupdate\",\"compositionend\"];#" "$ed/sdk-all.js"
 done'
 
 echo "[3/3] 서비스 재시작"

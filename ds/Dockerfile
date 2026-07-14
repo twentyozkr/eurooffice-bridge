@@ -22,10 +22,14 @@ RUN cd /var/www/euro-office/documentserver/web-apps/apps && \
 
 # 한글 등 IME 조합 중 Cmd/Ctrl+Z(undo)·Y(redo) 차단 — 조합 미확정 상태에서 브라우저의
 # 네이티브 contenteditable undo 가 조합 버퍼만 왕복시키는 버그 회피. 조합 확정 후 undo 는 정상.
+#  1) keydown 가드: 조합 중 undo/redo 키 무시 (macOS IME 는 keyCode 229 로 올 수 있어 포함)
+#  2) beforeinput 가드: 트리거 경로와 무관하게 네이티브 historyUndo/Redo 자체를 차단
+#     (DS 자체 undo 는 캔버스 모델이라 beforeinput 을 쓰지 않음 — 항상 차단해도 안전)
 # ⚠ AGPL 수정에 해당 — 이 Dockerfile(공개 저장소)이 수정 내용의 공개 그 자체다.
 RUN cd /var/www/euro-office/documentserver/sdkjs && \
     for ed in cell word slide; do \
-      sed -i 's#CTextInputPrototype.onKeyDown=function(e){#CTextInputPrototype.onKeyDown=function(e){if(this.IsComposition\&\&(e.metaKey||e.ctrlKey)\&\&(90===e.keyCode||89===e.keyCode||"z"===e.key||"Z"===e.key||"y"===e.key||"Y"===e.key)){AscCommon.stopEvent(e);return false}#' "$ed/sdk-all.js"; \
+      sed -i 's#CTextInputPrototype.onKeyDown=function(e){#CTextInputPrototype.onKeyDown=function(e){if(this.IsComposition\&\&(e.metaKey||e.ctrlKey)\&\&(90===e.keyCode||89===e.keyCode||229===e.keyCode||"z"===e.key||"Z"===e.key||"y"===e.key||"Y"===e.key)){AscCommon.stopEvent(e);return false}#' "$ed/sdk-all.js"; \
+      sed -i 's#var inputEvents=\["input","compositionstart","compositionupdate","compositionend"\];#this.HtmlArea.addEventListener("beforeinput",function(e){var t=e.inputType;if("historyUndo"===t||"historyRedo"===t)e.preventDefault()},false);var inputEvents=["input","compositionstart","compositionupdate","compositionend"];#' "$ed/sdk-all.js"; \
     done
 
 # URL 스킴을 호스트명 기반으로 판별 (빌드 타임 — env 불필요, 로컬/배포 자동 대응)
