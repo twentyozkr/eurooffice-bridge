@@ -9,7 +9,7 @@
  * - plugin 과는 MessageChannel 로 직결 (plugin 이 connect 핸드셰이크를 시작)
  */
 ;(() => {
-  const BRIDGE_VERSION = '0.7.0'
+  const BRIDGE_VERSION = '0.8.0'
   const PROTOCOL_V = 1
 
   // 배포 설정은 serve.mjs 가 env 로부터 생성하는 /config.js (window.EO_BRIDGE_CONFIG) 로 주입.
@@ -174,6 +174,9 @@
           }),
       },
     }
+    // DS JWT — 임베더의 문서서버가 서명한 토큰. JWT_ENABLED=true 인 DS 는 이 토큰의
+    // 보안 필드(url/key/callbackUrl/permissions)를 신뢰 원천으로 사용한다 (v1.1).
+    if (p.token) config.token = p.token
     if (mode === 'edit') {
       if (p.callbackUrl) config.editorConfig.callbackUrl = p.callbackUrl
       config.editorConfig.plugins = {
