@@ -20,7 +20,7 @@ works-ui(임베더) ↔ eo-bridge(브릿지 페이지) 간 `window.postMessage` 
 
 | type | payload | 응답 payload |
 |---|---|---|
-| `eo:load` | `{ docType: "cell"\|"word"\|"slide", fileType: "xlsx"\|"docx"\|"pptx", mode: "edit"\|"view", key, url, title, callbackUrl?, lang?, logo?, user? }` | `{ ok }` — 이후 `eo:documentReady` 이벤트가 실제 로드 완료 신호 |
+| `eo:load` | `{ docType: "cell"\|"word"\|"slide", fileType: "xlsx"\|"docx"\|"pptx", mode: "edit"\|"view", key, url, title, callbackUrl?, lang?, logo?, user?, ui? }` | `{ ok }` — 이후 `eo:documentReady` 이벤트가 실제 로드 완료 신호 |
 | `eo:insertPlaceholder` | `{ dataName }` — cell: 활성 셀 값 교체 / word·slide: 커서 위치에 텍스트 삽입 (edit 모드 전용) | `{ ok, address, value }` |
 | `eo:getActiveCell` | `{}` (cell 에디터 전용) | `{ ok, address, value }` |
 | `eo:destroy` | `{}` | `{ ok }` |
@@ -30,6 +30,8 @@ works-ui(임베더) ↔ eo-bridge(브릿지 페이지) 간 `window.postMessage` 
 - `logo` (선택): 에디터 좌측 상단 브랜딩 `{ image, imageDark, url }` — 생략 시 빈 로고(외부 링크 없음)
 - `user` (선택): 협업 표시용 사용자 `{ id, name }` — 임베더의 로그인 사용자를 넘기는 것이 정석.
   생략 시 브릿지가 브라우저별 고유 식별자(`사용자-XXXX`)를 생성해 localStorage 에 유지한다
+- `ui` (선택, v1.1): `"compact"` 이면 인라인 임베드용 슬림 UI — 탭 줄·좌측 아이콘 바·우측 패널 숨김,
+  툴바 한 줄 축약. 수식줄·하단 상태바(시트 탭/줌)는 유지. 생략 시 풀 UI
 
 ## 이벤트 (브릿지 → 임베더, id 없음)
 

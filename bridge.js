@@ -9,7 +9,7 @@
  * - plugin 과는 MessageChannel 로 직결 (plugin 이 connect 핸드셰이크를 시작)
  */
 ;(() => {
-  const BRIDGE_VERSION = '0.6.0'
+  const BRIDGE_VERSION = '0.7.0'
   const PROTOCOL_V = 1
 
   // 배포 설정은 serve.mjs 가 env 로부터 생성하는 /config.js (window.EO_BRIDGE_CONFIG) 로 주입.
@@ -149,6 +149,20 @@
           // 임베더가 eo:load 의 logo 로 자체 브랜딩(image/url) 주입 가능.
           // euro-office 는 §7(b) 로고 강제 조항이 제거된 순수 AGPL 이라 커스터마이징 합법
           logo: p.logo || { url: '' },
+          // ui: 'compact' — 인라인 임베드용 슬림 UI (v1.1).
+          // 좌측 아이콘 바·우측 패널 숨김 + 툴바 접힘(탭 줄만 남고 탭 클릭 시 도구 표시).
+          // 수식줄·하단 상태바(시트 탭/줌)는 유지.
+          // leftMenu/rightMenu:false 는 DS 의 canBrandingExt 라이선스 게이트에 막혀 있어
+          // ds/Dockerfile·ds-setup.sh 의 게이트 해제 패치가 적용된 DS 에서만 동작한다.
+          // toolbarNoTabs 는 DS 9.3 에서 툴바 아이콘이 깨져 쓰지 않는다.
+          ...(p.ui === 'compact'
+            ? {
+                compactToolbar: true,
+                hideRightMenus: true,
+                leftMenu: false,
+                rightMenu: false,
+              }
+            : {}),
         },
       },
       events: {
