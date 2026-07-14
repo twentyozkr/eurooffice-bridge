@@ -11,6 +11,15 @@ RUN cd /var/www/euro-office/documentserver/web-apps/apps && \
       sed -i "s|logo.url:'https://github.com/euro-office'|logo.url:''|g" "$ed/main/ie/app.js" || true; \
     done
 
+# UI 커스터마이징 라이선스 게이트(canBrandingExt) 해제 — customization.leftMenu/rightMenu/
+# statusBar/layout 이 config 로 동작하게 한다 (eo:load ui:"compact" 슬림 UI 용).
+# ⚠ AGPL 수정에 해당 — 이 Dockerfile(공개 저장소)이 수정 내용의 공개 그 자체다.
+RUN cd /var/www/euro-office/documentserver/web-apps/apps && \
+    for ed in spreadsheeteditor documenteditor presentationeditor; do \
+      sed -i 's|canBrandingExt=params.asc_getCanBranding()&&|canBrandingExt=|g' "$ed/main/app.js"; \
+      sed -i 's|canBrandingExt=params.asc_getCanBranding()&&|canBrandingExt=|g' "$ed/main/ie/app.js" || true; \
+    done
+
 # URL 스킴을 호스트명 기반으로 판별 (빌드 타임 — env 불필요, 로컬/배포 자동 대응)
 COPY patch-scheme.py /patch-scheme.py
 RUN python3 /patch-scheme.py
