@@ -52,12 +52,12 @@ for ed in spreadsheeteditor documenteditor presentationeditor; do
   sed -i "s|canBrandingExt=params.asc_getCanBranding()\&\&|canBrandingExt=|g" "$ed/main/ie/app.js" 2>/dev/null || true
 done'
 
-echo "[2.7/3] IME 조합 중 undo/redo 차단 (조합 버퍼 왕복 버그 회피 — keydown + beforeinput)"
+echo "[2.7/3] 셀 편집 중 undo/redo — 네이티브 execCommand 위임 (IME 조합 왕복 버그 해소 포함)"
 docker exec "$CONTAINER" bash -c '
 cd /var/www/euro-office/documentserver/sdkjs
 for ed in cell word slide; do
-  sed -i "s#CTextInputPrototype.onKeyDown=function(e){#CTextInputPrototype.onKeyDown=function(e){if(this.IsComposition\&\&(e.metaKey||e.ctrlKey)\&\&(90===e.keyCode||89===e.keyCode||229===e.keyCode||\"z\"===e.key||\"Z\"===e.key||\"y\"===e.key||\"Y\"===e.key)){AscCommon.stopEvent(e);return false}#" "$ed/sdk-all.js"
-  sed -i "s#var inputEvents=\[\"input\",\"compositionstart\",\"compositionupdate\",\"compositionend\"\];#this.HtmlArea.addEventListener(\"beforeinput\",function(e){var t=e.inputType;if(\"historyUndo\"===t||\"historyRedo\"===t)e.preventDefault()},false);var inputEvents=[\"input\",\"compositionstart\",\"compositionupdate\",\"compositionend\"];#" "$ed/sdk-all.js"
+  sed -i "s#CTextInputPrototype.onKeyDown=function(e){#CTextInputPrototype.onKeyDown=function(e){if((e.metaKey||e.ctrlKey)\&\&(90===e.keyCode||89===e.keyCode||229===e.keyCode||\"z\"===e.key||\"Z\"===e.key||\"y\"===e.key||\"Y\"===e.key)){var _eoT=this;var _eoRedo=89===e.keyCode||\"y\"===e.key||\"Y\"===e.key||!!e.shiftKey;var _eoCell=false;try{_eoCell=!!(_eoT.Api.wb\&\&_eoT.Api.wb.getCellEditMode\&\&_eoT.Api.wb.getCellEditMode())}catch(_e1){}if(this.IsComposition||_eoCell){AscCommon.stopEvent(e);try{if(this.IsComposition\&\&_eoT.HtmlArea.setSelectionRange){var _eoL=_eoT.getAreaValue().length;_eoT.HtmlArea.setSelectionRange(_eoL,_eoL)}}catch(_e2){}setTimeout(function(){if(_eoT.IsComposition)return;if(_eoCell)document.execCommand(_eoRedo?\"redo\":\"undo\");else _eoT.Api.onKeyDown({keyCode:_eoRedo?89:90,ctrlKey:true,metaKey:false,shiftKey:false,altKey:false,type:\"keydown\",target:_eoT.HtmlArea,preventDefault:function(){},stopPropagation:function(){}})},0);return false}}#" "$ed/sdk-all.js"
+  sed -i "s#var inputEvents=\[\"input\",\"compositionstart\",\"compositionupdate\",\"compositionend\"\];#this.HtmlArea.addEventListener(\"beforeinput\",function(e){var t=e.inputType;if(\"history\"===String(t).substr(0,7))e.preventDefault()},false);var inputEvents=[\"input\",\"compositionstart\",\"compositionupdate\",\"compositionend\"];#" "$ed/sdk-all.js"
 done'
 
 echo "[3/3] 서비스 재시작"
