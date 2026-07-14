@@ -28,8 +28,9 @@ RUN cd /var/www/euro-office/documentserver/web-apps/apps && \
 # ⚠ AGPL 수정에 해당 — 이 Dockerfile(공개 저장소)이 수정 내용의 공개 그 자체다.
 RUN cd /var/www/euro-office/documentserver/sdkjs && \
     for ed in cell word slide; do \
-      sed -i 's#CTextInputPrototype.onKeyDown=function(e){#CTextInputPrototype.onKeyDown=function(e){if(this.IsComposition\&\&(e.metaKey||e.ctrlKey)\&\&(90===e.keyCode||89===e.keyCode||229===e.keyCode||"z"===e.key||"Z"===e.key||"y"===e.key||"Y"===e.key)){AscCommon.stopEvent(e);return false}#' "$ed/sdk-all.js"; \
-      sed -i 's#var inputEvents=\["input","compositionstart","compositionupdate","compositionend"\];#this.HtmlArea.addEventListener("beforeinput",function(e){var t=e.inputType;if("historyUndo"===t||"historyRedo"===t)e.preventDefault()},false);var inputEvents=["input","compositionstart","compositionupdate","compositionend"];#' "$ed/sdk-all.js"; \
+      sed -i 's#CTextInputPrototype.onKeyDown=function(e){#CTextInputPrototype.onKeyDown=function(e){if(e.metaKey||e.ctrlKey)console.log("[eo-kd]",e.keyCode,e.key,"meta="+e.metaKey,"comp="+this.IsComposition,"native="+e.isComposing);if(this.IsComposition\&\&(e.metaKey||e.ctrlKey)\&\&(90===e.keyCode||89===e.keyCode||229===e.keyCode||"z"===e.key||"Z"===e.key||"y"===e.key||"Y"===e.key)){AscCommon.stopEvent(e);return false}#' "$ed/sdk-all.js"; \
+      sed -i 's#var inputEvents=\["input","compositionstart","compositionupdate","compositionend"\];#this.HtmlArea.addEventListener("beforeinput",function(e){var t=e.inputType;if("history"===String(t).substr(0,7)){console.log("[eo-bi]",t);e.preventDefault()}},false);var inputEvents=["input","compositionstart","compositionupdate","compositionend"];#' "$ed/sdk-all.js"; \
+      sed -i 's#var TEXT_INPUT_DEBUG=false#var TEXT_INPUT_DEBUG=true#' "$ed/sdk-all.js"; \
     done
 
 # URL 스킴을 호스트명 기반으로 판별 (빌드 타임 — env 불필요, 로컬/배포 자동 대응)
