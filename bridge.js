@@ -9,7 +9,7 @@
  * - plugin 과는 MessageChannel 로 직결 (plugin 이 connect 핸드셰이크를 시작)
  */
 ;(() => {
-  const BRIDGE_VERSION = '0.8.0'
+  const BRIDGE_VERSION = '0.9.0'
   const PROTOCOL_V = 1
 
   // 배포 설정은 serve.mjs 가 env 로부터 생성하는 /config.js (window.EO_BRIDGE_CONFIG) 로 주입.
@@ -145,6 +145,13 @@
           autosave: true,
           forcesave: true,
           compactHeader: true,
+          // 임베더 테마 동기화 (v1.2) — eo:load 의 theme: 'light'|'dark' 를 DS uiTheme 으로 매핑.
+          // 생략 시 DS 기본(사용자 로컬 설정) 유지.
+          ...(p.theme === 'dark'
+            ? { uiTheme: 'theme-dark' }
+            : p.theme === 'light'
+              ? { uiTheme: 'theme-light' }
+              : {}),
           // 좌측 상단 로고: 아이콘(이미지)은 유지하되 외부(GitHub) 클릭 링크만 무효화.
           // 임베더가 eo:load 의 logo 로 자체 브랜딩(image/url) 주입 가능.
           // euro-office 는 §7(b) 로고 강제 조항이 제거된 순수 AGPL 이라 커스터마이징 합법

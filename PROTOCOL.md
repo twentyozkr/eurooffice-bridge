@@ -20,7 +20,7 @@ works-ui(임베더) ↔ eo-bridge(브릿지 페이지) 간 `window.postMessage` 
 
 | type | payload | 응답 payload |
 |---|---|---|
-| `eo:load` | `{ docType: "cell"\|"word"\|"slide", fileType: "xlsx"\|"docx"\|"pptx", mode: "edit"\|"view", key, url, title, callbackUrl?, lang?, logo?, user?, ui?, token? }` | `{ ok }` — 이후 `eo:documentReady` 이벤트가 실제 로드 완료 신호 |
+| `eo:load` | `{ docType: "cell"\|"word"\|"slide", fileType: "xlsx"\|"docx"\|"pptx", mode: "edit"\|"view", key, url, title, callbackUrl?, lang?, logo?, user?, ui?, token?, theme? }` | `{ ok }` — 이후 `eo:documentReady` 이벤트가 실제 로드 완료 신호 |
 | `eo:insertPlaceholder` | `{ dataName }` — cell: 활성 셀 값 교체 / word·slide: 커서 위치에 텍스트 삽입 (edit 모드 전용) | `{ ok, address, value }` |
 | `eo:getActiveCell` | `{}` (cell 에디터 전용) | `{ ok, address, value }` |
 | `eo:destroy` | `{}` | `{ ok }` |
@@ -35,6 +35,8 @@ works-ui(임베더) ↔ eo-bridge(브릿지 페이지) 간 `window.postMessage` 
 - `token` (선택, v1.1): 임베더의 문서서버가 DS `JWT_SECRET` 으로 서명한 JWT.
   payload 는 `{ document: { fileType, key, title, url, permissions }, editorConfig: { mode, callbackUrl?, user } }`.
   `JWT_ENABLED=true` DS 에서는 필수 — DS 는 보안 필드를 토큰 값으로 신뢰한다. JWT off DS 에선 생략
+- `theme` (선택, v1.2): `"light"` | `"dark"` — 임베더의 테마를 에디터 UI 테마(DS uiTheme)로 동기화.
+  생략 시 DS 기본(사용자 로컬 설정) 유지. 런타임 전환 메시지는 없으므로 임베더가 테마 변경 시 새 `eo:load` 로 재로드한다
 
 ## 이벤트 (브릿지 → 임베더, id 없음)
 
